@@ -5,23 +5,7 @@
 # ── Documentation (Private / Not for Git) ──
 Doc/
 
-# ── YOLO Model Weights (too large for Git) ──
-*.pt
-*.pth
-*.onnx
-*.engine
-*.torchscript
-
-# ── Video Files (too large for Git) ──
-*.mp4
-*.avi
-*.mov
-*.mkv
-*.wmv
-*.flv
-*.webm
-
-# ── Dataset & Training Artifacts ──
+# ── Generated Training Artifacts (recreated at runtime) ──
 Code/Final/basketball_project/datasets/
 Code/Final/basketball_project/merged_dataset/
 Code/Final/basketball_project/extracted_frames/
@@ -33,12 +17,12 @@ Code/Final/runs/
 # ── Jupyter Notebook Checkpoints ──
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
+**/.ipynb_checkpoints/
 
 # ── Python Cache ──
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyo
 
 # ── Virtual Environments ──
 venv/
@@ -52,11 +36,11 @@ env/
 *.swp
 *.swo
 *~
+
+# ── OS Files ──
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# ── OS Files ──
 *.log
 *.tmp
 *.bak
@@ -64,10 +48,3 @@ desktop.ini
 # ── Gradio Temp Files ──
 gradio_tmp/
 flagged/
-
-# ── Misc Large / Generated Files ──
-Code/Firsrset ups/
-Code/MID/
-Code/Training_Local.ipynb
-Code/absolute_fix.py
-Code/colab_final_fix.py
