@@ -103,29 +103,11 @@ flowchart TD
 
 ## 🧠 Approach and Technical Decisions
 
-### Step 1 — Data Collection and Preparation
+**Data:** Three Roboflow datasets (~3,600 images) were merged to give the model diverse courts, angles, and lighting. Images were quality-filtered and resized to 640×640. The referee class was dropped — referees near court equipment were triggering false detections on basketball posts. An aspect ratio filter removed any remaining post-shaped boxes.
 
-We used three labeled basketball datasets from Roboflow (~3,600 images total). Multiple sources were chosen deliberately — a single dataset only teaches one court color, one camera angle, one jersey scheme. Three diverse sources help the model generalize to unseen footage. Images were quality-filtered (blurry, dark, and corrupted files removed) and resized to 640×640. The referee class was removed after early testing showed it caused basketball posts to be falsely detected as players — referees near court equipment look visually similar to vertical poles from a broadcast angle. An aspect ratio filter (height/width > 5.5 = reject) was added as a second layer of protection.
+**Detection:** We fine-tuned YOLOv11m (pretrained on Microsoft COCO, 118k images) on the merged dataset. Fine-tuning takes ~90 minutes on a GPU and produces better results than training from scratch because the model already understands human body shapes. We chose YOLOv11m over two-stage detectors like Faster R-CNN because basketball needs real-time speed — YOLO runs at 30–100 FPS versus Faster R-CNN's 5–10 FPS.
 
----
-
-### Step 2 — Detection Model: YOLOv11m
-
-**YOLOv11m** is a single-stage detector — it scans an image once and outputs all bounding boxes directly, running at 30–100 FPS. Two-stage detectors like Faster R-CNN run at 5–10 FPS, which is too slow for real-time basketball tracking. We fine-tuned from Microsoft COCO pretrained weights (118,000 images, 80 classes including person) rather than training from scratch. The model already understood human body shapes — fine-tuning adapts that knowledge to basketball in ~90 minutes instead of days. The medium variant was chosen for the best accuracy-to-speed balance on standard GPU hardware.
-
-| Parameter | Value |
-|---|---|
-| Optimizer | AdamW |
-| Learning rate | 0.001 |
-| Epochs | 100 |
-| Image size | 640 px |
-| Augmentation | Mosaic, mixup, HSV jitter, horizontal flip |
-
----
-
-### Step 3 — Tracking: ByteTrack
-
-Detection processes each frame independently with no memory of previous frames. Tracking links those detections across time and assigns consistent player IDs. We chose **ByteTrack** to handle a basketball-specific problem: players screen each other constantly, causing the hidden player's detection confidence to drop from ~0.85 to ~0.18. SORT discards low-confidence detections and loses the track. DeepSORT adds visual re-identification but cannot distinguish players wearing the same jersey. ByteTrack uses a two-stage match — first matching high-confidence detections, then using the low-confidence ones to recover any still-unmatched tracks. This is what keeps occluded players tracked without an ID switch.
+**Tracking:** We used ByteTrack to maintain consistent player IDs across frames. Basketball players constantly screen each other, dropping a hidden player's detection confidence from ~0.85 to ~0.18. SORT discards those low-confidence detections and loses the track. DeepSORT can't re-identify players who wear identical jerseys. ByteTrack runs a second matching pass using the low-confidence detections to recover occluded players — keeping their ID intact throughout the video.
 
 ---
 
