@@ -1,187 +1,168 @@
-# 🏀 Basketball Player Detection & Tracking Pipeline
+# 🏀 Basketball Player Detection & Tracking
 
-> **Big Vision Internship Assignment** — End-to-end computer vision system for detecting and tracking basketball players and the ball using YOLOv11m + ByteTrack.
+> **Big Vision Internship Assignment** — An end-to-end computer vision system that automatically detects basketball players and the ball in game footage, tracks each player with a persistent identity across every frame, and generates tactical analytics dashboards.
 
-![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
-![YOLO](https://img.shields.io/badge/YOLOv11m-Ultralytics-purple?logo=yolo)
-![Supervision](https://img.shields.io/badge/Supervision-Roboflow-orange)
-![License](https://img.shields.io/badge/License-Academic-green)
-
----
-
-## 📋 Overview
-
-This project implements a production-ready basketball tracking pipeline that:
-
-- **Detects** players and the ball in 4K basketball footage using a fine-tuned **YOLOv11m** model
-- **Tracks** persistent player identities across frames using **ByteTrack** (Kalman filter + two-stage matching)
-- **Generates** spatial analytics — heatmaps, zone occupancy, and trajectory visualizations
-- **Deploys** an interactive **Gradio** web demo for real-time video processing
+![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
+![YOLOv11m](https://img.shields.io/badge/Model-YOLOv11m-purple)
+![ByteTrack](https://img.shields.io/badge/Tracker-ByteTrack-orange)
+![mAP](https://img.shields.io/badge/mAP%4050-97.2%25-brightgreen)
 
 ---
 
-## 🔗 Project Resources
+## 📬 Submission Links
 
-📂 **Google Drive (Full Project Assets):** [Open in Drive](https://drive.google.com/drive/folders/1XeJBRmKvTCIiReYY5_Iixnz6TFS_oA-S?usp=sharing)
-
-> Includes datasets, trained model weights, input videos, output results, and documentation.
+| Resource | Link |
+|---|---|
+| 📓 Colab Notebook | [Open Notebook](https://drive.google.com/file/d/17qCJ7xTn303QuCPYDz9ZJL0NN6ICejj6/view?usp=sharing) |
+| 📁 Datasets, Outputs and Weights | [Open Drive Folder](https://drive.google.com/drive/folders/1yvkaFfad3xh6fy7L-ICLraJw464pYK3q?usp=sharing) |
+| 🗂️ Complete Workspace | [Open Full Workspace](https://drive.google.com/drive/folders/1XeJBRmKvTCIiReYY5_Iixnz6TFS_oA-S?usp=sharing) |
 
 ---
 
-## 🏗️ Project Structure
+## 🧩 Problem Statement
 
+Manually reviewing basketball game footage to study player movement, court coverage, and team positioning requires hours of human effort per game clip. There is no automated way to answer questions like:
+
+- Where did each player spend time on the court?
+- Which zones were most occupied — the paint, mid-range, or the three-point arc?
+- How did individual players move across different phases of play?
+
+Doing this by hand is impractical at scale, and commercial tracking systems are expensive and closed-source.
+
+---
+
+## ✅ Solution Developed
+
+We built a fully automated pipeline in Python that takes raw basketball footage as input and produces:
+
+1. **A tracked output video** — every player carries a persistent numbered ID throughout, with a 50-frame movement trail drawn behind them
+2. **Player and ball heatmaps** — court overlays showing where each class spent the most time
+3. **Zone occupancy analysis** — breakdown of play in the paint, mid-range, and three-point zones
+4. **A 6-panel tracking analytics dashboard** — track continuity, detection confidence, players per frame, and more
+5. **An interactive Gradio web demo** — anyone can upload a basketball video and see tracked results instantly in their browser
+
+---
+
+## 🗺️ How the Project Works — Full Pipeline
+
+```mermaid
+flowchart TD
+    A1["Dataset 1 — 1616 images"] --> QF
+    A2["Dataset 2 — 1398 images"] --> QF
+    A3["Dataset 3 — 600 images"]  --> QF
+
+    QF["Quality Filter
+    Remove blurry, dark, corrupted"] --> PP
+
+    PP["Preprocess
+    Resize all images to 640x640"] --> MG
+
+    MG["Merge Datasets
+    Unify classes, filter false boxes"] --> MD
+
+    MD["Merged Dataset
+    3600 images — player and ball only"]
+
+    COCO["COCO Pretrained Weights
+    118k images, 80 classes"] --> TR
+
+    MD --> TR["Fine-tune YOLOv11m
+    100 epochs, AdamW lr=0.001"]
+
+    TR --> BM["Trained Model
+    best.pt — mAP50 = 0.972"]
+
+    VID["Input Video
+    4K 60fps basketball footage"] --> DET
+
+    BM --> DET["Per-frame Detection
+    YOLOv11m conf=0.40"]
+
+    DET --> BT["ByteTrack
+    Kalman filter and two-stage matching"]
+
+    BT --> OV["Tracked Video
+    Player IDs and movement trails"]
+    BT --> HM["Heatmaps
+    Player and ball positions"]
+    BT --> AN["Analytics Dashboard
+    6-panel charts"]
+    BT --> GR["Gradio Web Demo
+    localhost:7860"]
+
+    style BM   fill:#7C3AED,color:#fff
+    style COCO fill:#7C3AED,color:#fff
+    style BT   fill:#1D4ED8,color:#fff
+    style OV   fill:#166534,color:#fff
+    style HM   fill:#166534,color:#fff
+    style AN   fill:#166534,color:#fff
+    style GR   fill:#166534,color:#fff
 ```
-Big Vision/
-├── Code/
-│   ├── Final/                          # Production code
-│   │   ├── basketball_LOCAL_FINAL.ipynb     # 🔑 Main notebook (local GPU)
-│   │   ├── basketball_COLAB_FINAL.ipynb     # Google Colab version
-│   │   ├── basketball_project/              # Generated at runtime
-│   │   │   ├── datasets/                    # Downloaded Roboflow datasets
-│   │   │   ├── merged_dataset/              # Cleaned & merged YOLO dataset
-│   │   │   ├── extracted_frames/            # Sampled video frames
-│   │   │   ├── outputs/                     # Tracked videos, heatmaps, metrics
-│   │   │   ├── runs/                        # Training logs & checkpoints
-│   │   │   └── weights/                     # Saved model weights
-│   │   └── runs/                            # Ultralytics training runs
-│   │       └── detect/yolov11m_basketball/
-│   │           └── weights/best.pt          # ⭐ Trained model
-│   └── Inputs/                         # Raw input videos (4K)
-│       ├── 14789160_3840_2160_60fps.mp4
-│       └── 14800461_3840_2160_60fps.mp4
-├── .gitignore
-└── README.md
-```
 
 ---
 
-## 🚀 Quick Start
+## 🧠 Approach and Technical Decisions
 
-### Prerequisites
+**Data:** Three Roboflow datasets (~3,600 images) were merged to give the model diverse courts, angles, and lighting. Images were quality-filtered and resized to 640×640. The referee class was dropped — referees near court equipment were triggering false detections on basketball posts. An aspect ratio filter removed any remaining post-shaped boxes.
 
-- **Python 3.10+**
-- **NVIDIA GPU** with CUDA support (tested on RTX 4050)
-- **~8 GB** free disk space (datasets + model)
+**Detection:** We fine-tuned YOLOv11m (pretrained on Microsoft COCO, 118k images) on the merged dataset. Fine-tuning takes ~90 minutes on a GPU and produces better results than training from scratch because the model already understands human body shapes. We chose YOLOv11m over two-stage detectors like Faster R-CNN because basketball needs real-time speed — YOLO runs at 30–100 FPS versus Faster R-CNN's 5–10 FPS.
 
-### 1. Install Dependencies
-
-```bash
-pip install ultralytics supervision gradio opencv-python numpy matplotlib roboflow
-```
-
-### 2. Run the Notebook
-
-Open `Code/Final/basketball_LOCAL_FINAL.ipynb` in Jupyter and run cells sequentially:
-
-| Cell | Purpose | Time |
-|------|---------|------|
-| 1 | Setup directories & detect GPU | ~5s |
-| 2–5 | Download datasets from Roboflow | ~3 min |
-| 6–7 | Merge & clean datasets (~5000 images) | ~2 min |
-| **8** | **Train YOLOv11m** (100 epochs) | **~4 hours** |
-| 9–12 | Validate model & extract frames | ~1 min |
-| **13** | **Track video with ByteTrack** | **~10 min** |
-| 14–16 | Generate heatmaps & analytics | ~2 min |
-| **17** | **Launch Gradio web demo** | Instant |
-
-> **Skip training:** If you already have `best.pt`, place it at `Code/Final/runs/detect/yolov11m_basketball/weights/best.pt` and skip to Cell 9.
-
-### 3. Launch the Demo
-
-```python
-# Cell 17 launches the Gradio interface
-demo.launch(share=False, inbrowser=True)
-# → Opens at http://localhost:7860
-```
+**Tracking:** We used ByteTrack to maintain consistent player IDs across frames. Basketball players constantly screen each other, dropping a hidden player's detection confidence from ~0.85 to ~0.18. SORT discards those low-confidence detections and loses the track. DeepSORT can't re-identify players who wear identical jerseys. ByteTrack runs a second matching pass using the low-confidence detections to recover occluded players — keeping their ID intact throughout the video.
 
 ---
 
-## 🧠 Technical Architecture
-
-### Detection — YOLOv11m
-
-- **Base model**: `yolo11m.pt` (COCO pre-trained)
-- **Fine-tuned** on ~5000 basketball images from 3 Roboflow datasets
-- **Classes**: `Player` (0), `Ball` (1)
-- **Inference**: `conf=0.40`, `iou=0.5`
-- **Post-filter**: Aspect-ratio filter removes backboard/post false positives
-
-### Tracking — ByteTrack
-
-- **Algorithm**: Kalman filter prediction + two-stage Hungarian matching
-- **High-confidence match** → immediate ID assignment
-- **Low-confidence match** → tentative track, confirmed after persistence
-- Handles occlusions and jersey color similarities in crowded scenes
-
-### Training Configuration
-
-| Parameter | Value |
-|-----------|-------|
-| Optimizer | AdamW |
-| Learning Rate | 0.001 |
-| Epochs | 100 |
-| Image Size | 640px |
-| Batch Size | Auto |
-| Augmentation | Ultralytics defaults |
-
-### Results
+## 📊 Results
 
 | Metric | Score |
-|--------|-------|
-| **mAP@50** | **0.972** (97.2%) |
-| mAP@50-95 | 0.65+ |
-| Precision | 0.95+ |
-| Recall | 0.94+ |
+|---|---|
+| **mAP@50** | **97.2%** |
+| mAP@50-95 | 65%+ |
+| Precision | 95%+ |
+| Recall | 94%+ |
 
 ---
 
-## 📊 Analytics & Visualizations
+## 🖥️ How to Run
 
-The pipeline generates the following outputs in `basketball_project/outputs/`:
+### Requirements
 
-| Output | Description |
-|--------|-------------|
-| `tracked_output.mp4` | Full video with bounding boxes, IDs, and trails |
-| `detection_test.png` | Sample frame detections grid |
-| `player_heatmap.png` | Gaussian-blurred player movement heatmap |
-| `ball_heatmap.png` | Ball trajectory heatmap |
-| `spatial_dashboard.png` | Zone occupancy (Paint, Mid-range, 3pt) |
-| `tracking_metrics.json` | MOTA, ID switches, track lengths |
+- Python 3.10 or higher
+- NVIDIA GPU recommended (CPU mode works but training takes 4–8 hours instead of 90 minutes)
 
----
+### Install
 
-## 🖥️ Gradio Web Interface
+```bash
+pip install ultralytics supervision gradio opencv-python numpy matplotlib roboflow seaborn
+```
 
-The interactive demo allows uploading any basketball video and produces tracked output with:
-- Real-time progress bar
-- Bounding boxes with player IDs and confidence scores
-- Movement trails via TraceAnnotator
-- Frame-by-frame player count overlay
+### Configure
 
----
+Open `basketball_LOCAL_FINAL.ipynb` and change only these three lines in Cell 1:
 
-## 📦 Dependencies
+```python
+BASE_DIR         = './basketball_project'      # where all files are saved
+API_KEY          = 'YOUR_ROBOFLOW_KEY'         # get free at roboflow.com → Settings
+INPUT_VIDEO_PATH = '/path/to/your/video.mp4'  # or leave '' to auto-download
+```
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `ultralytics` | ≥8.0 | YOLOv11 training & inference |
-| `supervision` | ≥0.18 | Tracking, annotation, video I/O |
-| `gradio` | ≥4.0 | Interactive web demo |
-| `opencv-python` | ≥4.8 | Image/video processing |
-| `roboflow` | ≥1.0 | Dataset download |
-| `numpy` | ≥1.24 | Numerical operations |
-| `matplotlib` | ≥3.7 | Visualization & plots |
+Then run all cells from top to bottom. Training takes approximately 90 minutes on a GPU.
+
+> **Skip training:** Place an existing `best.pt` at `basketball_project/runs/yolov11m_basketball/weights/best.pt` and start from Cell 9.
 
 ---
 
-## ⚠️ Known Issues & Fixes
+## 📦 Output Files
 
-| Issue | Solution |
-|-------|----------|
-| `ConnectionResetError [WinError 10054]` on Windows | Monkey-patch `asyncio.proactor_events` (included in Cell 17) |
-| `ValueError: tracker_id missing` | Guard with `if dets.tracker_id is not None` before `TraceAnnotator` |
-| `PermissionError` with Gradio uploads | Set `GRADIO_TEMP_DIR` to project directory |
-| Video not playing in Gradio | Re-encode output to H.264 with ffmpeg |
+All outputs are saved automatically to `basketball_project/outputs/`:
+
+| File | What it contains |
+|---|---|
+| `basketball_tracked.mp4` | Full annotated video with player IDs and movement trails |
+| `player_heatmap.jpg` | Court heatmap showing where players spent the most time |
+| `spatial_analytics.png` | Zone occupancy, density grid, player trajectories (6 charts) |
+| `tracking_analytics.png` | Track lengths, confidence, detections per frame (6 charts) |
+| `learning_curves.png` | Training loss and mAP improvement over 100 epochs |
+| `detection_metrics.png` | mAP, Precision, Recall, and F1 score summary |
 
 ---
 
@@ -191,6 +172,4 @@ The interactive demo allows uploading any basketball video and produces tracked 
 
 ---
 
-## 📄 License
-
-This project is developed as part of an academic internship assignment. All rights reserved.
+*All code, datasets, model weights, and output videos are available via the submission links at the top of this document.*
